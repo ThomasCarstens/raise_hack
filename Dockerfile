@@ -13,7 +13,9 @@ WORKDIR /app/frontend
 COPY leonardos-rfq-alchemy-main/package*.json ./
 
 # Install frontend dependencies
-RUN npm ci --only=production --silent
+# RUN npm ci --only=production --silent
+# RUN npm ci --silent
+RUN npm install
 
 # Copy frontend source code
 COPY leonardos-rfq-alchemy-main/ ./
