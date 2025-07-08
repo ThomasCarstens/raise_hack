@@ -1,132 +1,54 @@
-# Docker Compose configuration for Leonardo's RFQ Alchemy Platform
-# Production-ready setup with persistent storage and environment configuration
-
 version: '3.8'
 
 services:
-  # ============================================================================
-  # Main Application Service
-  # ============================================================================
-  rfq-alchemy:
+  backend:
     build:
-      context: .
+      context: ./backend
       dockerfile: Dockerfile
-    container_name: leonardos-rfq-alchemy
-    restart: unless-stopped
-    
-    # Port mapping
     ports:
       - "8000:8000"
-    
-    # Environment variables
-    # IMPORTANT: Replace these with your actual API keys
     environment:
-      # API Keys - REQUIRED for application to function
       - GROQ_API_KEY=${GROQ_API_KEY}
       - OPENAI_API_KEY=${OPENAI_API_KEY}
-      
-      # Production configuration
-      - DEBUG=False
-      - PYTHONUNBUFFERED=1
-      - PYTHONDONTWRITEBYTECODE=1
-      
-      # Data directories (mapped to volumes)
-      - CHROMA_PERSIST_DIRECTORY=/app/data/chroma_proposal_db
-      - UPLOAD_DIRECTORY=/app/data/uploads
-      
-      # Optional: Additional configuration
-      - MAX_FILE_SIZE=10485760  # 10MB in bytes
-      - DEFAULT_LLM_MODEL=llama-3.1-8b-instant
-      - MAX_TOKENS=4000
-      - TEMPERATURE=0.1
-    
-    # Persistent volumes for data storage
     volumes:
-      - rfq_uploads:/app/data/uploads
-      - rfq_chroma_db:/app/data/chroma_proposal_db
-      
-      # Optional: Mount logs directory for debugging
-      - rfq_logs:/app/logs
+      - ./backend:/app
+      - /app/node_modules
+    networks:
+      - app-network
     
-    # Health check
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
-    
-    # Resource limits (adjust based on your server capacity)
-    deploy:
-      resources:
-        limits:
-          cpus: '2.0'
-          memory: 4G
-        reservations:
-          cpus: '0.5'
-          memory: 1G
-    
-    # Logging configuration
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    environment:
+      - REACT_APP_API_URL=http://localhost:8080
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    depends_on:
+      - backend
+    networks:
+      - app-network
 
-# ============================================================================
-# Named Volumes for Persistent Storage
-# ============================================================================
-volumes:
-  # Stores uploaded PDF files
-  rfq_uploads:
-    driver: local
-    
-  # Stores ChromaDB vector database
-  rfq_chroma_db:
-    driver: local
-    
-  # Optional: Application logs
-  rfq_logs:
-    driver: local
+  # Optional: Database (if needed)
+  # database:
+  #   image: postgres:15
+  #   environment:
+  #     - POSTGRES_DB=rfq_alchemy
+  #     - POSTGRES_USER=user
+  #     - POSTGRES_PASSWORD=password
+  #   ports:
+  #     - "5432:5432"
+  #   volumes:
+  #     - postgres_data:/var/lib/postgresql/data
+  #   networks:
+  #     - app-network
 
-# ============================================================================
-# Networks (optional - uses default bridge network)
-# ============================================================================
 networks:
-  default:
-    name: rfq-alchemy-network
+  app-network:
+    driver: bridge
 
-# ============================================================================
-# Usage Instructions
-# ============================================================================
-#
-# 1. Create a .env file in the same directory with your API keys:
-#    GROQ_API_KEY=your_actual_groq_api_key_here
-#    OPENAI_API_KEY=your_actual_openai_api_key_here
-#
-# 2. Start the application:
-#    docker-compose up -d
-#
-# 3. Check the logs:
-#    docker-compose logs -f rfq-alchemy
-#
-# 4. Access the application:
-#    - API: http://localhost:8000
-#    - Health check: http://localhost:8000/api/health
-#    - API docs: http://localhost:8000/api/docs
-#
-# 5. Stop the application:
-#    docker-compose down
-#
-# 6. Stop and remove volumes (WARNING: This will delete all data):
-#    docker-compose down -v
-#
-# 7. Update the application:
-#    docker-compose pull
-#    docker-compose up -d
-#
-# 8. View resource usage:
-#    docker-compose top
-#    docker stats leonardos-rfq-alchemy
-#
-# ============================================================================
+# volumes:
+#   postgres_data:
