@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Production Deployment Script for Leonardo's RFQ Alchemy Platform
-# This script helps automate the deployment process
+# This script helps automate the deployment process for both backend and frontend
 
 set -e  # Exit on any error
 
@@ -14,7 +14,8 @@ NC='\033[0m' # No Color
 
 # Configuration
 APP_NAME="Leonardo's RFQ Alchemy"
-CONTAINER_NAME="leonardos-rfq-alchemy"
+BACKEND_SERVICE="backend"
+FRONTEND_SERVICE="frontend"
 ENV_FILE=".env"
 ENV_EXAMPLE=".env.production.example"
 
@@ -79,6 +80,21 @@ check_environment() {
             exit 1
         else
             print_error "No environment file template found"
+            print_info "Creating basic .env file..."
+            cat > "$ENV_FILE" << EOF
+# API Keys
+GROQ_API_KEY=your_groq_api_key_here
+OPENAI_API_KEY=your_openai_api_key_here
+
+# Frontend API URL
+VITE_API_URL=http://localhost:8000
+
+# Database (if using)
+POSTGRES_DB=rfq_alchemy
+POSTGRES_USER=user
+POSTGRES_PASSWORD=password
+EOF
+            print_warning "Please edit $ENV_FILE with your actual API keys before continuing"
             exit 1
         fi
     fi
@@ -91,7 +107,7 @@ check_environment() {
     fi
     
     # Check if API keys are not placeholder values
-    if grep -q "your_actual_groq_api_key_here" "$ENV_FILE" || grep -q "your_actual_openai_api_key_here" "$ENV_FILE"; then
+    if grep -q "your_groq_api_key_here" "$ENV_FILE" || grep -q "your_openai_api_key_here" "$ENV_FILE"; then
         print_error "Please replace placeholder API keys in $ENV_FILE with actual values"
         exit 1
     fi
@@ -100,45 +116,65 @@ check_environment() {
 }
 
 build_application() {
-    print_info "Building application..."
+    print_info "Building application services..."
     
-    # Build the Docker image
+    # Build both services
     if docker-compose build --no-cache; then
-        print_success "Application built successfully"
+        print_success "All services built successfully"
     else
-        print_error "Failed to build application"
+        print_error "Failed to build services"
+        exit 1
+    fi
+}
+
+build_service() {
+    local service=$1
+    print_info "Building $service service..."
+    
+    if docker-compose build --no-cache "$service"; then
+        print_success "$service service built successfully"
+    else
+        print_error "Failed to build $service service"
         exit 1
     fi
 }
 
 deploy_application() {
-    print_info "Deploying application..."
+    print_info "Deploying application services..."
     
-    # Stop existing container if running
-    if docker-compose ps | grep -q "$CONTAINER_NAME"; then
-        print_info "Stopping existing container..."
+    # Stop existing containers if running
+    if docker-compose ps | grep -q "Up"; then
+        print_info "Stopping existing containers..."
         docker-compose down
     fi
     
-    # Start the application
+    # Start the application services
     if docker-compose up -d; then
-        print_success "Application deployed successfully"
+        print_success "All services deployed successfully"
     else
-        print_error "Failed to deploy application"
+        print_error "Failed to deploy services"
         exit 1
     fi
 }
 
 wait_for_health() {
-    print_info "Waiting for application to be healthy..."
+    print_info "Waiting for services to be healthy..."
     
+    # Wait for backend
+    print_info "Checking backend health..."
     local max_attempts=30
     local attempt=1
     
     while [ $attempt -le $max_attempts ]; do
-        if curl -f -s http://localhost:8000/api/health > /dev/null 2>&1; then
-            print_success "Application is healthy and ready"
-            return 0
+        if curl -f -s http://localhost:8000/docs > /dev/null 2>&1; then
+            print_success "Backend is healthy and ready"
+            break
+        fi
+        
+        if [ $attempt -eq $max_attempts ]; then
+            print_error "Backend failed to become healthy within expected time"
+            print_info "Check backend logs with: docker-compose logs $BACKEND_SERVICE"
+            return 1
         fi
         
         echo -n "."
@@ -146,9 +182,28 @@ wait_for_health() {
         ((attempt++))
     done
     
-    print_error "Application failed to become healthy within expected time"
-    print_info "Check logs with: docker-compose logs rfq-alchemy"
-    return 1
+    # Wait for frontend
+    print_info "Checking frontend health..."
+    attempt=1
+    
+    while [ $attempt -le $max_attempts ]; do
+        if curl -f -s http://localhost:5173 > /dev/null 2>&1; then
+            print_success "Frontend is healthy and ready"
+            break
+        fi
+        
+        if [ $attempt -eq $max_attempts ]; then
+            print_error "Frontend failed to become healthy within expected time"
+            print_info "Check frontend logs with: docker-compose logs $FRONTEND_SERVICE"
+            return 1
+        fi
+        
+        echo -n "."
+        sleep 2
+        ((attempt++))
+    done
+    
+    print_success "All services are healthy and ready"
 }
 
 show_status() {
@@ -161,50 +216,65 @@ show_status() {
     
     # Show resource usage
     print_info "Resource Usage:"
-    docker stats --no-stream "$CONTAINER_NAME" 2>/dev/null || print_warning "Container not running"
+    docker stats --no-stream 2>/dev/null || print_warning "No containers running"
     echo ""
     
     # Show access information
     print_info "Access Information:"
-    echo "  🌐 API Base URL: http://localhost:8000"
-    echo "  📖 API Documentation: http://localhost:8000/api/docs"
-    echo "  🏥 Health Check: http://localhost:8000/api/health"
+    echo "  🌐 Frontend: http://localhost:5173"
+    echo "  🔧 Backend API: http://localhost:8000"
+    echo "  📖 API Documentation: http://localhost:8000/docs"
     echo ""
     
     # Show logs command
     print_info "View logs with:"
-    echo "  docker-compose logs -f rfq-alchemy"
+    echo "  docker-compose logs -f $BACKEND_SERVICE   # Backend logs"
+    echo "  docker-compose logs -f $FRONTEND_SERVICE  # Frontend logs"
+    echo "  docker-compose logs -f                    # All logs"
 }
 
 show_help() {
-    echo "Usage: $0 [COMMAND]"
+    echo "Usage: $0 [COMMAND] [SERVICE]"
     echo ""
     echo "Commands:"
-    echo "  deploy    - Full deployment (build and start)"
-    echo "  build     - Build the application only"
-    echo "  start     - Start the application"
-    echo "  stop      - Stop the application"
-    echo "  restart   - Restart the application"
-    echo "  status    - Show application status"
-    echo "  logs      - Show application logs"
-    echo "  health    - Check application health"
-    echo "  clean     - Clean up (stop and remove containers/volumes)"
-    echo "  help      - Show this help message"
+    echo "  deploy      - Full deployment (build and start both services)"
+    echo "  build       - Build both services or specific service"
+    echo "  start       - Start both services or specific service"
+    echo "  stop        - Stop both services or specific service"
+    echo "  restart     - Restart both services or specific service"
+    echo "  status      - Show application status"
+    echo "  logs        - Show application logs"
+    echo "  health      - Check application health"
+    echo "  clean       - Clean up (stop and remove containers/volumes)"
+    echo "  help        - Show this help message"
+    echo ""
+    echo "Services:"
+    echo "  backend     - Backend API service"
+    echo "  frontend    - Frontend web application"
     echo ""
     echo "Examples:"
-    echo "  $0 deploy    # Full deployment"
-    echo "  $0 status    # Check status"
-    echo "  $0 logs      # View logs"
+    echo "  $0 deploy           # Full deployment of both services"
+    echo "  $0 build backend    # Build only backend service"
+    echo "  $0 start frontend   # Start only frontend service"
+    echo "  $0 logs backend     # View backend logs"
+    echo "  $0 status           # Check status of all services"
 }
 
 # Main script logic
+SERVICE="${2:-}"
+
 case "${1:-deploy}" in
     "deploy")
         print_header
         check_prerequisites
         check_environment
-        build_application
-        deploy_application
+        if [ -n "$SERVICE" ]; then
+            build_service "$SERVICE"
+            docker-compose up -d "$SERVICE"
+        else
+            build_application
+            deploy_application
+        fi
         wait_for_health
         show_status
         ;;
@@ -212,27 +282,46 @@ case "${1:-deploy}" in
     "build")
         print_header
         check_prerequisites
-        build_application
+        if [ -n "$SERVICE" ]; then
+            build_service "$SERVICE"
+        else
+            build_application
+        fi
         ;;
     
     "start")
         print_header
         check_prerequisites
         check_environment
-        deploy_application
+        if [ -n "$SERVICE" ]; then
+            docker-compose up -d "$SERVICE"
+        else
+            deploy_application
+        fi
         wait_for_health
         show_status
         ;;
     
     "stop")
-        print_info "Stopping application..."
-        docker-compose down
-        print_success "Application stopped"
+        if [ -n "$SERVICE" ]; then
+            print_info "Stopping $SERVICE service..."
+            docker-compose stop "$SERVICE"
+            print_success "$SERVICE service stopped"
+        else
+            print_info "Stopping all services..."
+            docker-compose down
+            print_success "All services stopped"
+        fi
         ;;
     
     "restart")
-        print_info "Restarting application..."
-        docker-compose restart
+        if [ -n "$SERVICE" ]; then
+            print_info "Restarting $SERVICE service..."
+            docker-compose restart "$SERVICE"
+        else
+            print_info "Restarting all services..."
+            docker-compose restart
+        fi
         wait_for_health
         show_status
         ;;
@@ -242,20 +331,42 @@ case "${1:-deploy}" in
         ;;
     
     "logs")
-        docker-compose logs -f rfq-alchemy
+        if [ -n "$SERVICE" ]; then
+            docker-compose logs -f "$SERVICE"
+        else
+            docker-compose logs -f
+        fi
         ;;
     
     "health")
-        if curl -f -s http://localhost:8000/api/health; then
-            print_success "Application is healthy"
+        backend_healthy=false
+        frontend_healthy=false
+        
+        if curl -f -s http://localhost:8000/docs > /dev/null 2>&1; then
+            print_success "Backend is healthy"
+            backend_healthy=true
         else
-            print_error "Application is not healthy"
+            print_error "Backend is not healthy"
+        fi
+        
+        if curl -f -s http://localhost:5173 > /dev/null 2>&1; then
+            print_success "Frontend is healthy"
+            frontend_healthy=true
+        else
+            print_error "Frontend is not healthy"
+        fi
+        
+        if [ "$backend_healthy" = true ] && [ "$frontend_healthy" = true ]; then
+            print_success "All services are healthy"
+            exit 0
+        else
+            print_error "Some services are not healthy"
             exit 1
         fi
         ;;
     
     "clean")
-        print_warning "This will stop the application and remove all data!"
+        print_warning "This will stop all services and remove all data!"
         read -p "Are you sure? (y/N): " -n 1 -r
         echo
         if [[ $REPLY =~ ^[Yy]$ ]]; then
