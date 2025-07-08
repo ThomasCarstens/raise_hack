@@ -1,0 +1,206 @@
+# Docker ignore file for Leonardo's RFQ Alchemy Platform
+# Excludes files and directories that shouldn't be included in the Docker build context
+
+# ============================================================================
+# Version Control
+# ============================================================================
+.git
+.gitignore
+.gitattributes
+
+# ============================================================================
+# Development Environment
+# ============================================================================
+.devcontainer/
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# ============================================================================
+# Python
+# ============================================================================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual environments
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+
+# PyCharm
+.idea/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+*.ipynb
+
+# pytest
+.pytest_cache/
+.coverage
+htmlcov/
+
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# ============================================================================
+# Node.js / Frontend
+# ============================================================================
+leonardos-rfq-alchemy-main/node_modules/
+leonardos-rfq-alchemy-main/.npm
+leonardos-rfq-alchemy-main/.eslintcache
+leonardos-rfq-alchemy-main/npm-debug.log*
+leonardos-rfq-alchemy-main/yarn-debug.log*
+leonardos-rfq-alchemy-main/yarn-error.log*
+leonardos-rfq-alchemy-main/lerna-debug.log*
+
+# Runtime data
+leonardos-rfq-alchemy-main/pids
+leonardos-rfq-alchemy-main/*.pid
+leonardos-rfq-alchemy-main/*.seed
+leonardos-rfq-alchemy-main/*.pid.lock
+
+# Coverage directory used by tools like istanbul
+leonardos-rfq-alchemy-main/coverage/
+leonardos-rfq-alchemy-main/*.lcov
+
+# nyc test coverage
+leonardos-rfq-alchemy-main/.nyc_output
+
+# Dependency directories
+leonardos-rfq-alchemy-main/jspm_packages/
+
+# Optional npm cache directory
+leonardos-rfq-alchemy-main/.npm
+
+# Optional eslint cache
+leonardos-rfq-alchemy-main/.eslintcache
+
+# Microbundle cache
+leonardos-rfq-alchemy-main/.rpt2_cache/
+leonardos-rfq-alchemy-main/.rts2_cache_cjs/
+leonardos-rfq-alchemy-main/.rts2_cache_es/
+leonardos-rfq-alchemy-main/.rts2_cache_umd/
+
+# Optional REPL history
+leonardos-rfq-alchemy-main/.node_repl_history
+
+# Output of 'npm pack'
+leonardos-rfq-alchemy-main/*.tgz
+
+# Yarn Integrity file
+leonardos-rfq-alchemy-main/.yarn-integrity
+
+# parcel-bundler cache (https://parceljs.org/)
+leonardos-rfq-alchemy-main/.cache
+leonardos-rfq-alchemy-main/.parcel-cache
+
+# Next.js build output
+leonardos-rfq-alchemy-main/.next
+
+# Nuxt.js build / generate output
+leonardos-rfq-alchemy-main/.nuxt
+
+# Gatsby files
+leonardos-rfq-alchemy-main/.cache/
+
+# Storybook build outputs
+leonardos-rfq-alchemy-main/.out
+leonardos-rfq-alchemy-main/.storybook-out
+
+# ============================================================================
+# Application Data (Runtime/Development)
+# ============================================================================
+# These directories contain runtime data and should not be in the image
+uploads/
+chroma_proposal_db/
+
+# Test files
+test_*.pdf
+test_*.txt
+*.test.*
+
+# ============================================================================
+# Documentation and Examples
+# ============================================================================
+README.md
+SETUP_GUIDE.md
+*.md
+docs/
+examples/
+
+# ============================================================================
+# Configuration Files (Development)
+# ============================================================================
+.env
+.env.local
+.env.development
+.env.test
+.env.production
+devcontainer.json.example
+
+# ============================================================================
+# Scripts (Development/Testing)
+# ============================================================================
+start_frontend.py
+test_*.py
+*.ipynb
+
+# ============================================================================
+# Logs
+# ============================================================================
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# ============================================================================
+# OS Generated Files
+# ============================================================================
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# ============================================================================
+# Temporary Files
+# ============================================================================
+*.tmp
+*.temp
+.tmp/
+.temp/
+
+# ============================================================================
+# Docker
+# ============================================================================
+Dockerfile*
+.dockerignore
+docker-compose*.yml
